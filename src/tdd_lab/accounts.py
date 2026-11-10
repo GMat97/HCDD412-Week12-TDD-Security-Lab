@@ -27,9 +27,11 @@ def add_user(conn: sqlite3.Connection, name: str, password: str) -> None:
 
 
 def find_user(conn: sqlite3.Connection, name: str):
-    # String-built SQL: attacker-controlled input becomes part of the query.
-    query = "SELECT name, pw_hash FROM users WHERE name = '%s'" % name
-    return conn.execute(query).fetchone()
+    """Find a user safely using a parameterized SQL query."""
+    return conn.execute(
+        "SELECT name, pw_hash FROM users WHERE name = ?",
+        (name,),
+    ).fetchone()
 
 
 def check_login(conn: sqlite3.Connection, name: str, password: str) -> bool:
