@@ -1,24 +1,59 @@
-"""Legacy account helpers -- INTENTIONALLY INSECURE. Your job: scan, triage, fix.
 
-Every weakness below is something a real static-analysis tool will flag.
-"""
+"""Account helpers with secure password hashing and SQL queries."""
+
 import hashlib
+import hmac
+import os
 import sqlite3
 
-SECRET_KEY = "campus-secret-123"  # hard-coded credential
+SECRET_KEY = os.environ.get("APP_SECRET_KEY", "")
 
 
 def hash_password(password: str) -> str:
-    # Weak, fast hash -- unsuitable for passwords.
-    return hashlib.md5(password.encode()).hexdigest()
+    """Hash a password with a random salt using PBKDF2-HMAC-SHA256."""
+    salt = os.urandom(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode(),
+        salt,
+        600_000,
+    )
+    return salt.hex() + "$" + digest.hex()
+
+
+def verify_password(password: str, stored: str) -> bool:
+    """Verify a password against its stored salted hash."""
+    try:
+        salt_hex, digest_hex = stored.split("$")
+        salt = bytes.fromhex(salt_hex)
+        expected_digest = bytes.fromhex(digest_hex)
+    except (ValueError, AttributeError):
+        return False
+
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode(),
+        salt,
+        600_000,
+    )
+
+    return hmac.compare_digest(digest, expected_digest)
 
 
 def init_db(conn: sqlite3.Connection) -> None:
-    conn.execute("CREATE TABLE IF NOT EXISTS users (name TEXT, pw_hash TEXT)")
+    """Initialize the user database."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS users (name TEXT, pw_hash TEXT)"
+    )
     conn.commit()
 
 
-def add_user(conn: sqlite3.Connection, name: str, password: str) -> None:
+def add_user(
+    conn: sqlite3.Connection,
+    name: str,
+    password: str,
+) -> None:
+    """Add a user with a salted password hash."""
     conn.execute(
         "INSERT INTO users (name, pw_hash) VALUES (?, ?)",
         (name, hash_password(password)),
@@ -34,6 +69,11 @@ def find_user(conn: sqlite3.Connection, name: str):
     ).fetchone()
 
 
-def check_login(conn: sqlite3.Connection, name: str, password: str) -> bool:
+def check_login(
+    conn: sqlite3.Connection,
+    name: str,
+    password: str,
+) -> bool:
+    """Verify credentials against a stored password hash."""
     row = find_user(conn, name)
-    return row is not None and row[1] == hash_password(password)
+    return row is not None and verify_password(password, row[1])
