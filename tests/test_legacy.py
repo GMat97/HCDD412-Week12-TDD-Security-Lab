@@ -2,6 +2,8 @@
 import sqlite3
 
 import pytest
+from tdd_lab.accounts import hash_password
+from tdd_lab import accounts
 
 from tdd_lab.accounts import add_user, check_login, find_user, init_db
 from tdd_lab.prompt_guard import SYSTEM_PROMPT, build_prompt
@@ -43,3 +45,18 @@ def test_find_user_rejects_sql_injection(conn):
     malicious_name = "x' OR '1'='1"
 
     assert find_user(conn, malicious_name) is None
+def test_password_hash_uses_random_salt():
+    first_hash = hash_password("s3cret!")
+    second_hash = hash_password("s3cret!")
+
+    assert first_hash != second_hash
+
+
+def test_password_verification():
+    stored_hash = hash_password("s3cret!")
+
+    verifier = getattr(accounts, "verify_password", None)
+    assert callable(verifier), "Password verification must be implemented"
+
+    assert verifier("s3cret!", stored_hash) is True
+    assert verifier("wrong", stored_hash) is False
