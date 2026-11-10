@@ -21,11 +21,15 @@ from datetime import date
 class PromoError(ValueError):
     """Raised when a promo code cannot be applied."""
 
-
 def apply_promo(subtotal_cents: int, code: str, today: date) -> int:
     """Return the new total in cents after applying ``code``."""
     if code == "SAVE10":
         discount = subtotal_cents // 10
         return subtotal_cents - discount
+
+    if code == "FLAT5":
+        if subtotal_cents < 2_000:
+            raise PromoError("FLAT5 requires a $20 minimum")
+        return subtotal_cents - 500
 
     raise PromoError("Unsupported promo code")
