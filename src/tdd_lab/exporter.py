@@ -1,7 +1,14 @@
-"""Legacy report exporter -- INTENTIONALLY INSECURE."""
+"""Safely archive reports without invoking a command shell."""
+
 import subprocess
 
 
 def archive_report(filename: str) -> int:
-    """Zip a report file. ``filename`` comes straight from a web form."""
-    return subprocess.call("zip -q archive.zip " + filename, shell=True)
+    """Archive a report using a subprocess argument list."""
+    return subprocess.call([
+        "zip",
+        "-q",
+        "archive.zip",
+        "--",
+        filename,
+    ])
