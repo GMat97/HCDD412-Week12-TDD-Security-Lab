@@ -24,4 +24,8 @@ class PromoError(ValueError):
 
 def apply_promo(subtotal_cents: int, code: str, today: date) -> int:
     """Return the new total in cents after applying ``code``."""
-    raise NotImplementedError("Write the tests first, then implement me.")
+    if code == "SAVE10":
+        discount = subtotal_cents // 10
+        return subtotal_cents - discount
+
+    raise PromoError("Unsupported promo code")
